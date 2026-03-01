@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>第一章 | Chapter One</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700&family=Crimson+Pro:wght@400;700&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0a0a; color: #d4d4d4;
+    font-family: 'Noto Serif SC', 'Crimson Pro', serif;
+    height: 100vh; display: flex;
+    justify-content: center; align-items: center;
+  }
+  .container { text-align: center; animation: fadeIn 2s ease; }
+  h1 { font-size: 36px; color: #e8e8e8; letter-spacing: 6px; margin-bottom: 16px; }
+  p { color: #555; font-size: 14px; letter-spacing: 2px; margin-bottom: 40px; }
+  a { color: #c9a96e; text-decoration: none; font-size: 14px; letter-spacing: 2px; border: 1px solid #c9a96e44; padding: 10px 30px; transition: all 0.3s; }
+  a:hover { border-color: #c9a96e; }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>第一章</h1>
+  <p>即将到来</p>
+  <a href="../">返回</a>
+</div>
+<script>
+  const lang = localStorage.getItem('lang') || 'zh';
+  if (lang === 'en') {
+    document.querySelector('h1').textContent = 'Chapter One';
+    document.querySelector('p').textContent = 'Coming Soon';
+    document.querySelector('a').textContent = 'Back';
+  }
+</script>
+</body>
+</html>
