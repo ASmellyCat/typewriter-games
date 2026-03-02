@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Typewriter Games</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700&family=Crimson+Pro:wght@400;700&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0a0a; color: #d4d4d4;
+    font-family: 'Noto Serif SC', 'Crimson Pro', serif;
+    min-height: 100vh; display: flex;
+    justify-content: center; align-items: center;
+  }
+  .container { max-width: 640px; width: 90%; text-align: center; }
+  h1 { font-size: 36px; color: #e8e8e8; letter-spacing: 6px; margin-bottom: 8px; }
+  .subtitle { font-size: 14px; color: #555; letter-spacing: 3px; margin-bottom: 60px; }
+  .game-list { display: flex; flex-direction: column; gap: 16px; margin-bottom: 40px; }
+  .game-card {
+    border: 1px solid #222; padding: 24px; text-align: left;
+    cursor: pointer; transition: all 0.3s ease; text-decoration: none; color: inherit; display: block;
+  }
+  .game-card:hover { border-color: #666; }
+  .game-card h2 { font-size: 24px; color: #e8e8e8; margin-bottom: 8px; letter-spacing: 4px; }
+  .game-card .desc { font-size: 14px; color: #666; line-height: 1.8; }
+  .game-card .tag { font-size: 12px; color: #c9a96e; margin-top: 12px; letter-spacing: 2px; }
+
+  /* Settings */
+  #settings-btn {
+    position: fixed; top: 20px; right: 20px;
+    background: none; border: none; color: #333; font-size: 20px;
+    cursor: pointer; transition: color 0.3s; z-index: 100;
+  }
+  #settings-btn:hover { color: #888; }
+  #settings-panel {
+    display: none; position: fixed; top: 0; right: 0;
+    width: 260px; height: 100vh; background: #111; border-left: 1px solid #222;
+    padding: 60px 24px 24px; z-index: 99;
+  }
+  #settings-panel h3 { color: #c9a96e; font-size: 14px; letter-spacing: 3px; margin-bottom: 20px; }
+  .setting-row { margin-bottom: 20px; }
+  .setting-label { color: #666; font-size: 13px; margin-bottom: 8px; letter-spacing: 1px; }
+  .lang-btn {
+    font-family: 'Noto Serif SC', serif; font-size: 14px;
+    background: none; border: 1px solid #222; color: #666;
+    padding: 8px 16px; cursor: pointer; margin-right: 8px; transition: all 0.3s;
+  }
+  .lang-btn.active { color: #e8e8e8; border-color: #666; }
+  .lang-btn:hover { color: #e8e8e8; border-color: #666; }
+</style>
+</head>
+<body>
+<button id="settings-btn" onclick="toggleSettings()">&#9881;</button>
+<div id="settings-panel">
+  <h3 id="settings-title">设置</h3>
+  <div class="setting-row">
+    <div class="setting-label">语言 / Language</div>
+    <button class="lang-btn" id="btn-zh" onclick="setLang('zh')">中文</button>
+    <button class="lang-btn" id="btn-en" onclick="setLang('en')">English</button>
+  </div>
+</div>
+
+<div class="container">
+  <h1>TYPEWRITER</h1>
+  <div class="subtitle" id="subtitle">文字游戏合集</div>
+  <div class="game-list">
+    <a class="game-card" href="./qie/" id="card-qie">
+      <h2 id="card-qie-title">切</h2>
+      <div class="desc" id="card-qie-desc">一个关于选择的故事。每一刀都在切水果，也在切人生。</div>
+      <div class="tag" id="card-qie-tag">短篇 · 现实主义 · 文字冒险</div>
+    </a>
+    <a class="game-card" href="./ch1/" id="card-ch1" style="display:none">
+      <h2 id="card-ch1-title">第一章</h2>
+      <div class="desc" id="card-ch1-desc">故事不应该这样写。</div>
+      <div class="tag" id="card-ch1-tag">未完待续</div>
+    </a>
+  </div>
+</div>
+
+<script>
+let lang = localStorage.getItem('lang') || 'zh';
+
+const i18n = {
+  zh: {
+    subtitle: '文字游戏合集',
+    settings: '设置',
+    qieTitle: '序章 · 切',
+    qieDesc: '一个关于选择的故事。每一刀都在切水果，也在切人生。',
+    qieTag: '短篇 · 现实主义 · 文字冒险',
+    ch1Title: '第一章',
+    ch1Desc: '故事不应该这样写。',
+    ch1Tag: '未完待续'
+  },
+  en: {
+    subtitle: 'A collection of text adventures',
+    settings: 'Settings',
+    qieTitle: 'Prologue · CUT',
+    qieDesc: 'A story about choices. Every slice cuts fruit — and a life.',
+    qieTag: 'Short · Realism · Text Adventure',
+    ch1Title: 'Chapter One',
+    ch1Desc: 'The story shouldn\'t be written this way.',
+    ch1Tag: 'Coming Soon'
+  }
+};
+
+function updateUI() {
+  const t = i18n[lang];
+  document.getElementById('subtitle').textContent = t.subtitle;
+  document.getElementById('settings-title').textContent = t.settings;
+  document.getElementById('card-qie-title').textContent = t.qieTitle;
+  document.getElementById('card-qie-desc').textContent = t.qieDesc;
+  document.getElementById('card-qie-tag').textContent = t.qieTag;
+  const ch1t = document.getElementById('card-ch1-title'); if (ch1t) ch1t.textContent = t.ch1Title;
+  const ch1d = document.getElementById('card-ch1-desc'); if (ch1d) ch1d.textContent = t.ch1Desc;
+  const ch1g = document.getElementById('card-ch1-tag'); if (ch1g) ch1g.textContent = t.ch1Tag;
+  document.getElementById('btn-zh').className = 'lang-btn' + (lang === 'zh' ? ' active' : '');
+  document.getElementById('btn-en').className = 'lang-btn' + (lang === 'en' ? ' active' : '');
+}
+
+function setLang(l) { lang = l; localStorage.setItem('lang', l); updateUI();
+
+// Show Chapter 1 if prologue completed
+if (localStorage.getItem('prologueDone')) {
+  const ch1 = document.getElementById('card-ch1');
+  if (ch1) ch1.style.display = 'block';
+} }
+function toggleSettings() {
+  const p = document.getElementById('settings-panel');
+  p.style.display = p.style.display === 'none' ? 'block' : 'none';
+}
+
+updateUI();
+</script>
+</body>
+</html>

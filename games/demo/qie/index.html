@@ -1,0 +1,898 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>切 | CUT</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700&family=Crimson+Pro:wght@400;700&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0a0a; color: #d4d4d4;
+    font-family: 'Noto Serif SC', 'Crimson Pro', serif;
+    height: 100vh; display: flex;
+    justify-content: center; align-items: center; overflow: hidden;
+  }
+  #game { max-width: 640px; width: 90%; padding: 40px; position: relative; }
+
+  /* Nav buttons - top right */
+  #nav-buttons {
+    position: fixed; top: 20px; right: 20px; z-index: 100;
+    display: flex; gap: 14px;
+  }
+  #nav-buttons button {
+    background: none; border: none; color: #666; font-size: 14px;
+    cursor: pointer; transition: color 0.3s;
+  }
+  #nav-buttons button:hover { color: #888; }
+
+  /* Settings panel */
+  #settings-panel {
+    display: none; position: fixed; top: 0; right: 0;
+    width: 260px; height: 100vh; background: #111; border-left: 1px solid #222;
+    padding: 60px 24px 24px; z-index: 99;
+  }
+  #settings-panel h3 { color: #c9a96e; font-size: 14px; letter-spacing: 3px; margin-bottom: 20px; }
+  .setting-row { margin-bottom: 20px; }
+  .setting-label { color: #666; font-size: 13px; margin-bottom: 8px; }
+  .lang-btn {
+    font-family: 'Noto Serif SC', serif; font-size: 14px;
+    background: none; border: 1px solid #222; color: #666;
+    padding: 8px 16px; cursor: pointer; margin-right: 8px; transition: all 0.3s;
+  }
+  .lang-btn.active { color: #e8e8e8; border-color: #666; }
+  .lang-btn:hover { color: #e8e8e8; border-color: #666; }
+
+  /* Title screen */
+  #title-screen { text-align: center; animation: fadeIn 2s ease; }
+  #title-screen h1 { font-size: 72px; font-weight: 700; color: #e8e8e8; margin-bottom: 40px; letter-spacing: 8px; }
+  #title-screen .start-btn {
+    font-family: 'Noto Serif SC', 'Crimson Pro', serif; font-size: 16px; color: #888;
+    background: none; border: 1px solid #333; padding: 12px 40px;
+    cursor: pointer; letter-spacing: 4px; transition: all 0.3s ease;
+  }
+  #title-screen .start-btn:hover { color: #e8e8e8; border-color: #888; }
+
+  /* Story */
+  #story-screen { display: none; overflow-y: auto; max-height: 80vh; }
+  #text-container { min-height: 300px; line-height: 2; font-size: 16px; letter-spacing: 1px; }
+  #text-container .line { opacity: 0; animation: lineIn 0.5s ease forwards; margin-bottom: 8px; }
+  #text-container .line.ending { color: #c9a96e; font-weight: 700; margin-top: 20px; }
+
+  /* Choices */
+  #choices { margin-top: 40px; display: flex; flex-direction: column; gap: 12px; }
+  #choices button {
+    font-family: 'Noto Serif SC', 'Crimson Pro', serif; font-size: 15px; color: #888;
+    background: none; border: 1px solid #222; padding: 14px 20px;
+    cursor: pointer; text-align: left; transition: all 0.3s ease; letter-spacing: 1px;
+  }
+  #choices button:hover { color: #e8e8e8; border-color: #666; padding-left: 28px; }
+  #choices button .choice-num { color: #c9a96e; margin-right: 12px; }
+
+  /* End buttons */
+  #restart { display: none; margin-top: 40px; }
+  #restart button {
+    font-family: 'Noto Serif SC', 'Crimson Pro', serif; font-size: 14px; color: #666;
+    background: none; border: 1px solid #222; padding: 10px 30px;
+    cursor: pointer; letter-spacing: 2px; transition: all 0.3s ease;
+  }
+  #restart button:hover { color: #e8e8e8; border-color: #666; }
+
+  /* Cursor */
+  .cursor-blink::after { content: '▍'; animation: blink 1s step-end infinite; color: #c9a96e; }
+
+  /* Scene Tree */
+  #scene-map { padding: 20px 0; }
+  .tree-container { overflow-x: auto; padding: 20px 0; }
+  .tree-node {
+    font-family: 'Noto Serif SC', 'Crimson Pro', serif; font-size: 13px;
+    background: none; border: 1px solid #222; color: #555;
+    padding: 10px 16px; cursor: default; white-space: nowrap;
+    transition: all 0.3s; letter-spacing: 1px; display: flex; align-items: center; margin: 4px 0;
+  }
+  .tree-node.unlocked { color: #888; cursor: pointer; border-color: #333; }
+  .tree-node.unlocked:hover { color: #e8e8e8; border-color: #666; }
+  .tree-node.ending { border-color: #c9a96e33; }
+  .tree-node.ending.unlocked { border-color: #c9a96e66; color: #c9a96e; }
+
+
+  /* Custom Modal */
+  #modal-overlay {
+    display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.7); z-index: 200;
+    justify-content: center; align-items: center;
+  }
+  #modal-overlay.show { display: flex; }
+  #modal-box {
+    background: #111; border: 1px solid #333; padding: 30px 40px;
+    max-width: 320px; text-align: center;
+  }
+  #modal-text { color: #d4d4d4; font-size: 15px; margin-bottom: 24px; letter-spacing: 1px; line-height: 1.6; }
+  #modal-buttons { display: flex; gap: 12px; justify-content: center; }
+  #modal-buttons button {
+    font-family: 'Noto Serif SC', 'Crimson Pro', serif; font-size: 14px;
+    background: none; border: 1px solid #333; color: #888; padding: 8px 24px;
+    cursor: pointer; transition: all 0.3s; letter-spacing: 1px;
+  }
+  #modal-buttons button:hover { color: #e8e8e8; border-color: #666; }
+
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes lineIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes blink { 50% { opacity: 0; } }
+</style>
+</head>
+<body>
+
+<!-- Navigation -->
+<div id="nav-buttons">
+  <button onclick="goHome()" title="Home"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M3 12l9-9 9 9"/><path d="M5 10v10a1 1 0 001 1h4v-6h4v6h4a1 1 0 001-1V10"/></svg></button>
+  <button onclick="restartGame()" title="Restart"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 105.64-11.36L1 10"/></svg></button>
+  <button onclick="toggleSettings()" title="Settings"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg></button>
+</div>
+
+<!-- Settings Panel -->
+<div id="settings-panel">
+  <h3 id="settings-title">设置</h3>
+  <div class="setting-row">
+    <div class="setting-label">语言 / Language</div>
+    <button class="lang-btn" id="btn-zh" onclick="setLang('zh')">中文</button>
+    <button class="lang-btn" id="btn-en" onclick="setLang('en')">English</button>
+  </div>
+</div>
+
+<!-- Game -->
+<div id="game">
+  <div id="title-screen">
+    <h1 id="game-title">切</h1>
+    <button class="start-btn" onclick="startGame()" id="start-btn">进入</button>
+  </div>
+  <div id="story-screen">
+    <div id="text-container"></div>
+    <div id="choices"></div>
+    <div id="restart" style="display:flex;gap:12px;flex-wrap:wrap;">
+      <button onclick="restartGame()" id="restart-btn">重新开始</button>
+      <button onclick="showMap()" id="map-btn">章节选择</button>
+    </div>
+    <div id="scene-map" style="display:none"></div>
+  </div>
+</div>
+
+<script>
+
+let lang = localStorage.getItem('lang') || 'zh';
+// v2: default zh
+if (!localStorage.getItem('lang')) { localStorage.setItem('lang', 'zh'); lang = 'zh'; }
+
+const ui = {
+  zh: { title: '切', enter: '进入', restart: '重新开始', chapters: '章节选择', settings: '设置', langLabel: '语言 / Language', chapTitle: '章节选择', chapHint: '（未解锁的章节显示为 ???）' },
+  en: { title: 'CUT', enter: 'Enter', restart: 'Restart', chapters: 'Chapters', settings: 'Settings', langLabel: 'Language / 语言', chapTitle: 'Chapters', chapHint: '(Locked chapters shown as ???)' }
+};
+
+const story = {
+  start: {
+    text: {
+      zh: [
+        "凌晨3:45。闹钟响了。",
+        "你在黑暗中摸到手机，关掉闹钟。屏幕的光刺得你眯起眼睛。",
+        "又是新的一天。",
+        "你在GreenMart的水果部工作。每天的任务是切8小时水果。",
+        "芒果、菠萝、西瓜、哈密瓜。日复一日。",
+        "你拖着身体下床，脑子里回响着昨晚刷到的新闻——",
+        "\u201cAI将在未来五年取代40%的工作岗位。\u201d",
+        "你活动了一下僵硬的肩膀和手腕。",
+        "这种工作，AI大概还不屑于取代吧。",
+        "\u2026\u2026",
+        "但你不确定这算安慰还是讽刺。"
+      ],
+      en: [
+        "3:45 AM. The alarm goes off.",
+        "You fumble for your phone in the dark. The screen light stings your eyes.",
+        "Another day.",
+        "You work in the produce department at GreenMart. Eight hours of cutting fruit, every day.",
+        "Mangoes, pineapples, watermelons, cantaloupes. Day after day.",
+        "You drag yourself out of bed, last night's headline still echoing\u2014",
+        "\u201cAI expected to replace 40% of jobs within five years.\u201d",
+        "You glance at your hands, covered in tiny cuts.",
+        "This kind of work\u2014AI probably can't even be bothered to replace it.",
+        "\u2026",
+        "You're not sure if that's comforting or just pathetic."
+      ]
+    },
+    choices: {
+      zh: [{ text: "继续这份工作", next: "keep_working" }, { text: "辞职", next: "quit" }],
+      en: [{ text: "Keep this job", next: "keep_working" }, { text: "Quit", next: "quit" }]
+    }
+  },
+  keep_working: {
+    text: {
+      zh: [
+        "你决定继续。",
+        "不是因为热爱，是因为你还没想好下一步。",
+        "而且\u2026\u2026房租不会因为你的迷茫就少收一分钱。",
+        "日子照常过着。切水果。回家。刷手机。睡觉。",
+        "一个月后，社交媒体上突然全是同一个话题——",
+        "\u201cAgent自动化，普通人也能用AI创业！\u201d",
+        "\u201c用Agent三天做出百万营收副业\u201d",
+        "\u201c不会写代码也能让AI帮你干活\u201d",
+        "你刷着这些帖子，拇指停在了一个视频上：",
+        "一个跟你差不多大的人，辞了服务业的工作，",
+        "现在每天在家对着电脑说话就能赚钱。",
+        "你看了一眼自己切水果切到发白的指关节。",
+        "明天还是要4点起床。"
+      ],
+      en: [
+        "You decide to stay.",
+        "Not out of love for the job. You just haven't figured out what's next.",
+        "Besides\u2026 rent doesn't care about your existential crisis.",
+        "Life goes on. Cut fruit. Go home. Scroll phone. Sleep.",
+        "A month later, social media explodes with the same topic\u2014",
+        "\u201cAI Agents: anyone can automate their way to a business!\u201d",
+        "\u201cBuilt a six-figure side hustle with an Agent in three days\u201d",
+        "\u201cNo coding needed\u2014let AI do the work for you\u201d",
+        "Your thumb stops on a video:",
+        "Someone your age, quit their service job,",
+        "now makes money talking to a computer at home.",
+        "You look at your knuckles, white from gripping fruit knives.",
+        "Tomorrow is still 4 AM."
+      ]
+    },
+    choices: {
+      zh: [{ text: "回家倒头就睡，太累了", next: "just_sleep" }, { text: "下班后开始学写代码", next: "learn_coding" }],
+      en: [{ text: "Go home and crash. Too tired.", next: "just_sleep" }, { text: "Start learning to code after work", next: "learn_coding" }]
+    }
+  },
+  just_sleep: {
+    text: {
+      zh: [
+        "你选择了睡觉。",
+        "不是放弃，只是太累了。",
+        "一天又一天。一年又一年。",
+        "每年涨薪3%。通胀4.5%。",
+        "你的工资在涨，你的生活在缩。",
+        "你试着申请调去烘焙部——被拒了。",
+        "申请shift leader——被拒了。",
+        "\u201c你不太适合跟顾客打交道。\u201d经理说。",
+        "你想反驳，但发现自己确实已经很久没跟人正常说过话了。",
+        "每天凌晨4点起床，在冷库里切水果，",
+        "下班回家天已经黑了。室友在客厅看剧，你直接进房间关门。",
+        "三年后你照镜子，吓了一跳。",
+        "眼袋深得像淤青，法令纹像刀刻的。看起来比实际老了十岁。",
+        "你存款$4,200。三年，只存了这么多。",
+        "不够搬出合租屋。不够回家。不够去任何地方。",
+        "你的世界就是那条路线：公寓——公交站——GreenMart——公交站——公寓。",
+        "有时候你在公交车上看到别人在笑，",
+        "会想：那是什么感觉来着？",
+        "你已经想不起来了。",
+        "",
+        "\u3010结局：钝刀\u3011"
+      ],
+      en: [
+        "You choose sleep.",
+        "It's not giving up. You're just too tired.",
+        "Day after day. Year after year.",
+        "Annual raise: 3%. Inflation: 4.5%.",
+        "Your paycheck grows. Your life shrinks.",
+        "You apply for a transfer to bakery\u2014denied.",
+        "Apply for shift leader\u2014denied.",
+        "\u201cYou're not really a people person,\u201d the manager says.",
+        "You want to argue, but realize you can't remember the last time you had a real conversation.",
+        "Up at 4 AM, cutting fruit in the cold room.",
+        "Home after dark. Your roommate watches TV. You close your bedroom door.",
+        "Three years later, you catch yourself in the mirror. You flinch.",
+        "Eye bags like bruises. Lines carved deep. You look a decade older than you are.",
+        "Savings: $4,200. Three years, and that's all you have.",
+        "Not enough to move out. Not enough to go home. Not enough to go anywhere.",
+        "Your world is one route: apartment\u2014bus stop\u2014GreenMart\u2014bus stop\u2014apartment.",
+        "Sometimes you see people laughing on the bus,",
+        "and you think: what does that feel like again?",
+        "You can't remember.",
+        "",
+        "\u3010Ending: Dull Blade\u3011"
+      ]
+    },
+    choices: { zh: [], en: [] }
+  },
+  learn_coding: {
+    text: {
+      zh: [
+        "你开始学用Agent。",
+        "每天下班后，别人在刷剧，你在研究prompt engineering。",
+        "凌晨4点起床上班，晚上11点还在调workflow。",
+        "有时候你怀疑自己是不是在自虐。",
+        "但每次Agent跑通一个复杂任务的那一刻\u2014\u2014",
+        "那种感觉，比切出一个完美的芒果丁好多了。",
+        "三个月后，你做出了一个真正好用的东西。",
+        "一个帮小时工自动追讨欠薪的工具。",
+        "你知道这个痛点，因为你自己就被克扣过。",
+        "产品确实好。用过的人都说好。",
+        "但你没钱推广。一百条帖子，最高12个赞。",
+        "半年后，一家大公司用Agent三天复刻了你的产品。",
+        "他们有钱、有流量、有渠道。你的作品，死了。",
+        "你甚至不生气。你只是觉得累。",
+        "然后更大的浪来了。",
+        "Agent越来越强。人人都会用。",
+        "超市裁了一半人。快递站裁了一半人。客服全没了。",
+        "会用Agent不再是优势，就像会用搜索引擎不是优势一样。",
+        "而那些拥有算力、拥有数据、拥有平台的人，",
+        "财富像失控的滚雪球一样膨胀。",
+        "GDP创了新高。股市创了新高。",
+        "你的房租也创了新高。",
+        "你站在GreenMart门口，看着满街的无人配送车。",
+        "货架上的东西比以前多了三倍，也便宜了。",
+        "但你连一个人住都住不起。",
+        "这个世界从未如此富有。",
+        "而你从未如此贫穷。",
+        "你想问为什么。",
+        "为什么三个人拥有的财富比全世界一半的人加起来还多？",
+        "为什么AI让生产力翻了三倍，而你的时薪只涨了五毛？",
+        "生产力过剩了。商品过剩了。算力过剩了。",
+        "唯独不过剩的，是分到你手里的那一份。",
+        "但你知道没人会回答。",
+        "有答案的人不需要回答。",
+        "没答案的人不配提问。",
+        "",
+        "\u3010结局：丰饶的荒漠\u3011"
+      ],
+      en: [
+        "You start learning to use AI Agents.",
+        "After work, while others binge shows, you study prompt engineering.",
+        "Up at 4 AM for work, still tweaking workflows at 11 PM.",
+        "Sometimes you wonder if this is just self-torture.",
+        "But every time an Agent nails a complex task\u2014",
+        "that feeling is better than cutting the perfect mango cube.",
+        "Three months in, you build something genuinely useful.",
+        "A tool that helps hourly workers automatically recover stolen wages.",
+        "You know this pain. Your own pay was skimmed before.",
+        "The product is good. Everyone who tries it says so.",
+        "But you can't afford to market it. A hundred posts, twelve likes max.",
+        "Six months later, a big company clones your product with an Agent in three days.",
+        "They have money, traffic, distribution. Your creation dies.",
+        "You're not even angry. Just tired.",
+        "Then the bigger wave hits.",
+        "Agents get stronger. Everyone learns to use them.",
+        "Supermarkets cut half their staff. Delivery centers, half. Customer service, gone.",
+        "Using an Agent is no longer an advantage\u2014like knowing how to Google isn't an advantage.",
+        "Meanwhile, those who own the compute, the data, the platforms\u2014",
+        "their wealth snowballs out of control.",
+        "GDP hits record highs. Markets hit record highs.",
+        "Your rent hits record highs.",
+        "You stand outside GreenMart, watching autonomous delivery bots roll by.",
+        "The shelves hold three times more than before, and it's cheaper too.",
+        "But you still can't afford to live alone.",
+        "The world has never been this rich.",
+        "And you have never been this poor.",
+        "You want to ask why.",
+        "Why do three people own more wealth than half the world combined?",
+        "Why did AI triple productivity while your hourly wage went up fifty cents?",
+        "There's a surplus of everything. Goods. Compute. Output.",
+        "The only thing that isn't surplus is your share.",
+        "But you know no one will answer.",
+        "Those who have the answer don't need to.",
+        "Those who don't aren't worth answering.",
+        "",
+        "\u3010Ending: Desert of Plenty\u3011"
+      ]
+    },
+    choices: { zh: [], en: [] }
+  },
+  quit: {
+    text: {
+      zh: [
+        "你交了辞职信。",
+        "经理看了你一眼，连挽留都没有。",
+        "走出GreenMart的那一刻，阳光晃得你睁不开眼。",
+        "自由的感觉持续了大约\u2026\u2026三天。",
+        "然后你看了一眼银行账户。",
+        "存款：$2,847。",
+        "房租：$1,200/月。",
+        "你需要做一个决定。"
+      ],
+      en: [
+        "You hand in your resignation.",
+        "The manager glances at it. Doesn't even try to keep you.",
+        "Walking out of GreenMart, the sunlight blinds you.",
+        "Freedom lasts about\u2026 three days.",
+        "Then you check your bank account.",
+        "Balance: $2,847.",
+        "Rent: $1,200/month.",
+        "You need to make a decision."
+      ]
+    },
+    choices: {
+      zh: [{ text: "打电话给爸妈", next: "ask_parents" }, { text: "极度节省，靠存款撑着", next: "frugal" }],
+      en: [{ text: "Call your parents", next: "ask_parents" }, { text: "Cut all spending. Survive on savings.", next: "frugal" }]
+    }
+  },
+  ask_parents: {
+    text: {
+      zh: [
+        "\u201c妈，我辞职了。\u201d",
+        "电话那头沉默了很久。",
+        "然后你妈说了一句你这辈子最怕听到的话：",
+        "\u201c回来吧，妈养你。\u201d",
+        "你回了家。",
+        "第一天，妈做了你爱吃的菜。爸没说话。",
+        "第三天，妈\u201c不经意\u201d地提起邻居家的孩子考上了公务员。",
+        "第七天，爸终于开口了：",
+        "\u201c我就说你这个性格，干什么都是三分钟热度。\u201d",
+        "你想反驳。但你吃着他们的饭，住着他们的房子。",
+        "你闭嘴了。",
+        "妈开始替你做所有决定。几点吃饭，穿什么衣服，该不该出门。",
+        "\u201c都是为你好。\u201d",
+        "你一个成年人，活得像个小孩。",
+        "你投简历。没人回。你开始不投了。",
+        "爸妈的退休金不多，但够三个人吃饭。刚好。",
+        "刚好意味着没有任何多余的钱。",
+        "没有旅行。没有新衣服。没有任何属于你自己的东西。",
+        "你偶尔帮忙做饭，洗碗，拖地。",
+        "妈说：\u201c你看，还是在家好吧。外面哪有人要你。\u201d",
+        "你不知道这是关心还是诅咒。",
+        "一年。五年。十年。",
+        "爸妈老了。你也不年轻了。",
+        "家里的积蓄像沙漏一样往下漏。",
+        "你终于意识到应该存钱的时候，已经来不及了。",
+        "你没有工作经历。没有技能。没有积蓄。",
+        "只有一个越来越小的房子，和两个越来越老的人。",
+        "有一天你收到一封养老院的宣传册。",
+        "你看了一眼价格，把它扔进了垃圾桶。",
+        "不是给爸妈看的。是给你自己看的。",
+        "",
+        "\u3010结局：笼\u3011"
+      ],
+      en: [
+        "\u201cMom, I quit my job.\u201d",
+        "Silence on the other end. A long time.",
+        "Then she says the words you've dreaded your whole life:",
+        "\u201cCome home. We'll take care of you.\u201d",
+        "You go home.",
+        "Day one: Mom cooks your favorite dish. Dad says nothing.",
+        "Day three: Mom \u201ccasually\u201d mentions the neighbor's kid got a government job.",
+        "Day seven: Dad finally speaks:",
+        "\u201cI always said you had no follow-through.\u201d",
+        "You want to argue. But you're eating their food. Sleeping under their roof.",
+        "You shut up.",
+        "Mom starts making every decision for you. When to eat, what to wear, whether you can go out.",
+        "\u201cIt's all for your own good.\u201d",
+        "A grown adult, living like a child.",
+        "You send r\u00e9sum\u00e9s. No one replies. You stop sending them.",
+        "Your parents' pension isn't much, but it feeds three. Barely.",
+        "Barely means nothing left over.",
+        "No trips. No new clothes. Nothing that's yours.",
+        "You help with dishes, mopping, cooking sometimes.",
+        "Mom says: \u201cSee? Home is better. No one out there wants you anyway.\u201d",
+        "You can't tell if it's love or a curse.",
+        "One year. Five. Ten.",
+        "Your parents age. So do you.",
+        "The family savings drain like an hourglass.",
+        "By the time you realize you should have been saving, it's too late.",
+        "No work history. No skills. No savings.",
+        "Just a shrinking house and two people getting older.",
+        "One day a nursing home brochure arrives in the mail.",
+        "You look at the price. Toss it in the trash.",
+        "It wasn't for your parents. It was for you.",
+        "",
+        "\u3010Ending: The Cage\u3011"
+      ]
+    },
+    choices: { zh: [], en: [] }
+  },
+  frugal: {
+    text: {
+      zh: [
+        "你开始过极简生活。",
+        "每天只吃一顿饭。后来变成每两天一顿。",
+        "你退掉了公寓，搬进一个隔断间。",
+        "省下来的每一分钱都让你有一种病态的安全感。",
+        "你开始害怕花钱。害怕出门。害怕跟人说话。",
+        "冰箱空了。你告诉自己明天再去买。",
+        "明天变成后天。后天变成下周。",
+        "你的身体开始浮肿。头发一把一把地掉。",
+        "你已经分不清饥饿和麻木的区别了。",
+        "有一天邻居闻到了气味。",
+        "破门而入的时候，你蜷缩在床上，",
+        "手里还攥着手机，屏幕停在外卖APP的结算页面。",
+        "你始终没有按下那个付款键。",
+        "",
+        "\u3010结局：饿殍\u3011"
+      ],
+      en: [
+        "You start living minimal.",
+        "One meal a day. Then one every two days.",
+        "You give up your apartment. Move into a partitioned room.",
+        "Every penny saved gives you a sick sense of security.",
+        "You start to fear spending. Fear going out. Fear talking to anyone.",
+        "The fridge is empty. You tell yourself you'll shop tomorrow.",
+        "Tomorrow becomes the day after. The day after becomes next week.",
+        "Your body swells. Your hair falls out in clumps.",
+        "You can no longer tell the difference between hunger and numbness.",
+        "One day a neighbor notices the smell.",
+        "When they break down the door, you're curled up on the bed,",
+        "phone still clutched in your hand, screen frozen on a food delivery checkout page.",
+        "You never pressed pay.",
+        "",
+        "\u3010Ending: Famine\u3011"
+      ]
+    },
+    choices: { zh: [], en: [] }
+  }
+};
+
+const textContainer = document.getElementById('text-container');
+const choicesContainer = document.getElementById('choices');
+const restartBtn = document.getElementById('restart');
+const typeSpeed = 50;
+
+function updateUI() {
+  const u = ui[lang];
+  document.getElementById('game-title').textContent = u.title;
+  document.getElementById('start-btn').textContent = u.enter;
+  document.getElementById('restart-btn').textContent = u.restart;
+  document.getElementById('map-btn').textContent = u.chapters;
+  document.getElementById('settings-title').textContent = u.settings;
+  document.getElementById('lang-label').textContent = u.langLabel;
+  document.getElementById('btn-zh').className = 'lang-btn' + (lang === 'zh' ? ' active' : '');
+  document.getElementById('btn-en').className = 'lang-btn' + (lang === 'en' ? ' active' : '');
+}
+
+function setLang(l) {
+  lang = l;
+  localStorage.setItem('lang', l);
+  updateUI();
+}
+
+function toggleSettings() {
+  const panel = document.getElementById('settings-panel');
+  panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+}
+
+function startGame() {
+  document.getElementById('title-screen').style.display = 'none';
+  document.getElementById('story-screen').style.display = 'block';
+  playScene('start');
+}
+
+async function playScene(sceneId) {
+  skipTyping = false;
+  currentSceneId = sceneId;
+  const scene = story[sceneId];
+  if (!scene) return;
+  unlock(sceneId);
+  textContainer.innerHTML = '';
+  choicesContainer.innerHTML = '';
+  restartBtn.style.display = 'none';
+
+  const lines = scene.text[lang] || scene.text.zh;
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const div = document.createElement('div');
+    div.className = 'line';
+    if (line.startsWith('\u3010')) div.classList.add('ending');
+    textContainer.appendChild(div);
+    await typeText(div, line);
+    await delay(300);
+  }
+
+  const choices = scene.choices[lang] || scene.choices.zh;
+  if (choices.length === 0) {
+    markEnding(sceneId);
+    if (allEndingsSeen() && !localStorage.getItem('prologueDone')) {
+      // Show "继续" button
+      const contDiv = document.createElement('div');
+      contDiv.style.cssText = 'margin-top:40px;';
+      const contBtn = document.createElement('button');
+      contBtn.id = 'continue-btn';
+      contBtn.textContent = lang === 'zh' ? '继续' : 'Continue';
+      contBtn.style.cssText = 'font-family:Noto Serif SC,Crimson Pro,serif;font-size:16px;color:#c9a96e;background:none;border:1px solid #c9a96e44;padding:12px 40px;cursor:pointer;letter-spacing:4px;transition:all 0.3s;';
+      contBtn.onmouseenter = () => { contBtn.style.borderColor = '#c9a96e'; };
+      contBtn.onmouseleave = () => { contBtn.style.borderColor = '#c9a96e44'; };
+      contBtn.onclick = () => playEpilogue();
+      restartBtn.parentNode.insertBefore(contDiv, restartBtn);
+      contDiv.appendChild(contBtn);
+    }
+    restartBtn.style.display = 'block';
+    return;
+  }
+
+  await delay(500);
+  choices.forEach((choice, i) => {
+    const btn = document.createElement('button');
+    btn.innerHTML = '<span class="choice-num">' + (i+1) + '.</span>' + choice.text;
+    btn.onclick = () => playScene(choice.next);
+    choicesContainer.appendChild(btn);
+  });
+}
+
+function typeText(el, text) {
+  return new Promise(resolve => {
+    if (!text) { resolve(); return; }
+    if (skipTyping) {
+      el.textContent = text;
+      resolve();
+      return;
+    }
+    let i = 0;
+    el.classList.add('cursor-blink');
+    const interval = setInterval(() => {
+      if (skipTyping) {
+        el.textContent = text;
+        clearInterval(interval);
+        el.classList.remove('cursor-blink');
+        resolve();
+        return;
+      }
+      el.textContent = text.slice(0, i + 1);
+      i++;
+      if (i >= text.length) {
+        clearInterval(interval);
+        el.classList.remove('cursor-blink');
+        resolve();
+      }
+    }, typeSpeed);
+  });
+}
+
+function delay(ms) { return new Promise(r => setTimeout(r, skipTyping ? 0 : ms)); }
+
+// Unlock tracking
+const unlocked = JSON.parse(localStorage.getItem('unlocked') || '["start"]');
+function unlock(id) {
+  if (!unlocked.includes(id)) { unlocked.push(id); localStorage.setItem('unlocked', JSON.stringify(unlocked)); }
+}
+
+
+// Track endings seen
+const allEndings = ['just_sleep', 'learn_coding', 'ask_parents', 'frugal'];
+const seenEndings = JSON.parse(localStorage.getItem('seenEndings') || '[]');
+function markEnding(id) {
+  if (allEndings.includes(id) && !seenEndings.includes(id)) {
+    seenEndings.push(id);
+    localStorage.setItem('seenEndings', JSON.stringify(seenEndings));
+  }
+}
+function allEndingsSeen() { return allEndings.every(e => seenEndings.includes(e)); }
+
+const sceneNamesI18n = {
+  zh: { start: "开始", keep_working: "继续打工", quit: "辞职", just_sleep: "钝刀", learn_coding: "丰饶的荒漠", ask_parents: "笼", frugal: "饿殍" },
+  en: { start: "Start", keep_working: "Keep Working", quit: "Quit", just_sleep: "Dull Blade", learn_coding: "Desert of Plenty", ask_parents: "The Cage", frugal: "Famine" }
+};
+const sceneTree = { start: ["keep_working", "quit"], keep_working: ["just_sleep", "learn_coding"], quit: ["ask_parents", "frugal"] };
+
+const endings = ['just_sleep', 'learn_coding', 'ask_parents', 'frugal'];
+
+function showMap() {
+  const map = document.getElementById('scene-map');
+  if (map.style.display !== 'none') {
+    map.style.display = 'none';
+    document.getElementById('text-container').style.display = '';
+    document.getElementById('choices').style.display = '';
+    document.getElementById('restart').style.display = '';
+    return;
+  }
+  // Hide story content, show map fullscreen
+  document.getElementById('text-container').style.display = 'none';
+  document.getElementById('choices').style.display = 'none';
+  document.getElementById('restart').style.display = 'none';
+  map.style.display = 'block'; map.innerHTML = '';
+  const names = sceneNamesI18n[lang];
+
+  const title = document.createElement('div');
+  title.textContent = lang === 'zh' ? '章节选择' : 'Chapters';
+  title.style.cssText = 'color:#c9a96e;font-size:18px;letter-spacing:4px;margin-bottom:24px;';
+  map.appendChild(title);
+
+  const container = document.createElement('div');
+  container.className = 'tree-container';
+
+  function makeNode(id) {
+    const ok = unlocked.includes(id);
+    const isEnd = endings.includes(id);
+    const btn = document.createElement('div');
+    btn.className = 'tree-node' + (ok ? ' unlocked' : '') + (isEnd ? ' ending' : '');
+    btn.textContent = ok ? names[id] : '???';
+    if (ok) {
+      btn.onclick = () => {
+        map.style.display = 'none';
+        document.getElementById('text-container').style.display = '';
+        document.getElementById('choices').style.display = '';
+        document.getElementById('restart').style.display = '';
+        document.getElementById('title-screen').style.display = 'none';
+        document.getElementById('story-screen').style.display = 'block';
+        playScene(id);
+      };
+    }
+    return btn;
+  }
+
+  function buildTree(id) {
+    const group = document.createElement('div');
+    group.style.cssText = 'display:flex;align-items:center;';
+
+    const node = makeNode(id);
+    group.appendChild(node);
+
+    const children = sceneTree[id];
+    if (children && children.length > 0) {
+      // Connector line
+      const conn = document.createElement('div');
+      conn.style.cssText = 'width:24px;height:1px;background:#333;flex-shrink:0;';
+      group.appendChild(conn);
+
+      // Children column with vertical line
+      const childCol = document.createElement('div');
+      childCol.style.cssText = 'display:flex;flex-direction:column;position:relative;';
+
+      // Vertical line
+      if (children.length > 1) {
+        const vline = document.createElement('div');
+        vline.style.cssText = 'position:absolute;left:0;top:50%;width:1px;background:#333;';
+        // Will be sized after render
+        childCol._vline = vline;
+        childCol.appendChild(vline);
+      }
+
+      children.forEach((childId, i) => {
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex;align-items:center;margin:4px 0;';
+
+        const hconn = document.createElement('div');
+        hconn.style.cssText = 'width:24px;height:1px;background:#333;flex-shrink:0;';
+        row.appendChild(hconn);
+
+        const subtree = buildTree(childId);
+        row.appendChild(subtree);
+        childCol.appendChild(row);
+      });
+
+      group.appendChild(childCol);
+    }
+
+    return group;
+  }
+
+  const tree = buildTree('start');
+  container.appendChild(tree);
+  map.appendChild(container);
+
+  // Fix vertical lines after render
+  requestAnimationFrame(() => {
+    map.querySelectorAll('div').forEach(el => {
+      if (el._vline) {
+        const rows = Array.from(el.children).filter(c => c !== el._vline);
+        if (rows.length >= 2) {
+          const first = rows[0];
+          const last = rows[rows.length - 1];
+          const top = first.offsetTop + first.offsetHeight / 2;
+          const bottom = last.offsetTop + last.offsetHeight / 2;
+          el._vline.style.top = top + 'px';
+          el._vline.style.height = (bottom - top) + 'px';
+        }
+      }
+    });
+  });
+}
+
+
+// Custom modal
+let modalCallback = null;
+function showModal(text, yesText, noText, onYes) {
+  document.getElementById('modal-text').textContent = text;
+  document.getElementById('modal-yes').textContent = yesText;
+  document.getElementById('modal-no').textContent = noText;
+  document.getElementById('modal-overlay').className = 'show';
+  modalCallback = onYes;
+  document.getElementById('modal-yes').onclick = () => { closeModal(); if (modalCallback) modalCallback(); };
+}
+function closeModal() {
+  document.getElementById('modal-overlay').className = '';
+  modalCallback = null;
+}
+
+function goHome() {
+  const msg = lang === 'zh' ? '返回首页？当前进度不会保存。' : 'Return to home? Progress won\'t be saved.';
+  const yes = lang === 'zh' ? '确定' : 'Yes';
+  const no = lang === 'zh' ? '取消' : 'Cancel';
+  showModal(msg, yes, no, () => { window.location.href = '../'; });
+}
+
+function restartGame() {
+  const msg = lang === 'zh' ? '重新开始？' : 'Restart?';
+  const yes = lang === 'zh' ? '确定' : 'Yes';
+  const no = lang === 'zh' ? '取消' : 'Cancel';
+  showModal(msg, yes, no, () => { location.reload(); });
+}
+
+
+// Fast-forward: click/tap to skip typewriter animation
+let skipTyping = false;
+document.getElementById('game').addEventListener('click', (e) => {
+  // Don't skip if clicking a button
+  if (e.target.tagName === 'BUTTON' || e.target.closest('button') || e.target.closest('#nav-buttons') || e.target.closest('#settings-panel') || e.target.closest('#scene-map')) return;
+  skipTyping = true;
+});
+
+// Track current scene for language switch
+let currentSceneId = null;
+
+
+// Meta epilogue - after all endings seen
+async function playEpilogue() {
+  skipTyping = false;
+  textContainer.innerHTML = '';
+  choicesContainer.innerHTML = '';
+  restartBtn.style.display = 'none';
+  // Remove continue button
+  const cb = document.getElementById('continue-btn');
+  if (cb && cb.parentNode) cb.parentNode.remove();
+
+  // Screen goes black, then "open eyes" effect
+  const game = document.getElementById('game');
+  game.style.transition = 'opacity 1s';
+  game.style.opacity = '0';
+  await delay(1500);
+  game.style.opacity = '1';
+
+  const lines = lang === "zh" ? [
+    "“你喜欢哪个结局？”",
+    "",
+    "“我没有喜欢的结局，因为都不是好结局。”",
+    "",
+    "“可是我发自内心地觉得，这些就是我的结局。”",
+    "",
+    "“不行。”",
+  ] : [
+    "\u201cWhich ending did you like?\u201d",
+    "",
+    "\u201cNone of them. Because none of them were good endings.\u201d",
+    "",
+    "\u201cBut deep down, I believe that is all I deserve.\u201d",
+    "",
+    "\u201cNo.\u201d",
+  ];
+
+  for (const line of lines) {
+    const div = document.createElement('div');
+    div.className = 'line';
+    textContainer.appendChild(div);
+    await typeText(div, line);
+    await delay(line === '' ? 100 : line.startsWith('"') ? 600 : 400);
+  }
+
+  await delay(1000);
+
+  // Mark prologue as done
+  localStorage.setItem('prologueDone', 'true');
+
+  // Show button to go to chapter 1
+  const nextDiv = document.createElement('div');
+  nextDiv.style.cssText = 'margin-top:40px;text-align:center;';
+  const nextBtn = document.createElement('button');
+  nextBtn.textContent = lang === 'zh' ? '第一章' : 'Chapter One';
+  nextBtn.style.cssText = 'font-family:Noto Serif SC,Crimson Pro,serif;font-size:16px;color:#c9a96e;background:none;border:1px solid #c9a96e44;padding:12px 40px;cursor:pointer;letter-spacing:4px;transition:all 0.3s;animation:fadeIn 2s ease;';
+  nextBtn.onmouseenter = () => { nextBtn.style.borderColor = '#c9a96e'; };
+  nextBtn.onmouseleave = () => { nextBtn.style.borderColor = '#c9a96e44'; };
+  nextBtn.onclick = () => { window.location.href = '../ch1/'; };
+  nextDiv.appendChild(nextBtn);
+  textContainer.appendChild(nextDiv);
+
+  // Also show restart/home
+  restartBtn.style.display = 'block';
+}
+
+// Init
+updateUI();
+
+</script>
+
+<!-- Custom Modal -->
+<div id="modal-overlay">
+  <div id="modal-box">
+    <div id="modal-text"></div>
+    <div id="modal-buttons">
+      <button id="modal-yes"></button>
+      <button id="modal-no" onclick="closeModal()"></button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
